@@ -1,14 +1,14 @@
 #!/bin/bash
-# lib/system.sh
-
 SCRIPT_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_LIB_DIR/common.sh"
 
 update_system() {
-    info "Обновление системы..."
+    info "Обновление системы (это займет 1-3 минуты)..."
     export DEBIAN_FRONTEND=noninteractive
-    apt update -qq 2>&1 | tee -a "$LOG_FILE" >/dev/null || error "Ошибка apt update"
-    apt upgrade -y -qq 2>&1 | tee -a "$LOG_FILE" >/dev/null || error "Ошибка apt upgrade"
+    
+    run_with_spinner "apt update -qq" "Обновление списка пакетов (apt update)" || error "Ошибка apt update"
+    run_with_spinner "apt upgrade -y -qq" "Установка обновлений (apt upgrade)" || error "Ошибка apt upgrade"
+    
     apt autoremove -y -qq >/dev/null 2>&1 || true
     apt autoclean -qq >/dev/null 2>&1 || true
     ok "Система обновлена"
