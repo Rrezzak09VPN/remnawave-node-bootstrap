@@ -1,20 +1,25 @@
 #!/bin/bash
-# install.sh - Remnawave Node Bootstrap Installer
-
 set -Eeuo pipefail
 
+echo -e "\033[0;36m[*] Инициализация установщика Remnawave...\033[0m"
+
 REPO_RAW="https://raw.githubusercontent.com/Rrezzak09VPN/remnawave-node-bootstrap/main"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# === УМНЫЙ АВТОЗАГРУЗЧИК БИБЛИОТЕК ===
-# Если скрипт запущен через curl (one-line), папки lib рядом нет.
-# Он сам скачает их во временную директорию.
 if [[ ! -f "$SCRIPT_DIR/lib/common.sh" ]]; then
+    echo "[*] Скрипт запущен одной строкой. Загрузка библиотек..."
     export TMP_DIR=$(mktemp -d)
     mkdir -p "$TMP_DIR/lib"
     for f in common.sh system.sh network.sh fail2ban.sh docker.sh; do
-        curl -fsSL "$REPO_RAW/lib/$f" -o "$TMP_DIR/lib/$f" || { echo "Не удалось скачать lib/$f"; exit 1; }
+        echo "  -> Скачивание lib/$f..."
+        # Жесткие таймауты: 10 сек на коннект, 30 сек на скачивание. Больше никаких зависаний.
+        if ! curl -fsSL --connect-timeout 10 --max-time 30 "$REPO_RAW/lib/$f" -o "$TMP_DIR/lib/$f"; then
+            echo -e "\033[0;31m[ОШИБКА] Не удалось скачать lib/$f (проверьте интернет)\033[0m"
+            exit 1
+        fi
     done
+    echo "[*] Библиотеки успешно загружены."
     SCRIPT_DIR="$TMP_DIR"
 fi
 
@@ -23,7 +28,6 @@ source "$SCRIPT_DIR/lib/system.sh"
 source "$SCRIPT_DIR/lib/network.sh"
 source "$SCRIPT_DIR/lib/fail2ban.sh"
 source "$SCRIPT_DIR/lib/docker.sh"
-# === КОНЕЦ АВТОЗАГРУЗЧИКА ===
 
 clear
 
@@ -38,7 +42,7 @@ cat << "EOF"
 ║     ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚══╝╚══╝       ║
 ║                                                                  ║
 ║           Remnawave Node Bootstrap Installer v1.0                ║
-║                      Ubuntu 24.04 only                           ║
+║                      by Rezzosoft KVN                            ║
 ║                                                                  ║
 ╚══════════════════════════════════════════════════════════════════╝
 EOF
