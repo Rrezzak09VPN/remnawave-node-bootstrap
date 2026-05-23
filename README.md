@@ -12,7 +12,7 @@
 ## ⚡ Быстрый запуск (1 команда)
 
 ```bash
-bash <(curl -s https://raw.githubusercontent.com/USERNAME/REPO/main/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/Rrezzak09VPN/remnawave-node-bootstrap/main/install.sh)
 ```
 
 > 📋 Просто скопируй команду и вставь в терминал VPS (Ubuntu 24.04)
