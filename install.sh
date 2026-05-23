@@ -57,8 +57,9 @@ check_ubuntu_version
 check_internet
 check_disk_space
 check_ram
-check_ports
 check_existing_node
+check_ports
+
 
 echo ""
 ask "Продолжить установку? [y/N]: "
