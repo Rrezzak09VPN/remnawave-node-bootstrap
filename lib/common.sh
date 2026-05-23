@@ -49,8 +49,10 @@ ask() {
 }
 
 error() {
-    echo -e "${RED}[ERROR]${NC} $*" >&2
+    echo -e "\n${RED}[ОШИБКА]${NC} $*" >&2
     log "ERROR" "$*"
+    echo -e "${YELLOW}Установка прервана. Нажмите Enter для выхода...${NC}"
+    read -r
     exit 1
 }
 
