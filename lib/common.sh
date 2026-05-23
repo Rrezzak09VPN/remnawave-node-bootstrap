@@ -1,0 +1,119 @@
+#!/bin/bash
+# lib/common.sh
+
+set -Eeuo pipefail
+
+SCRIPT_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+export RED='\033[0;31m'
+export GREEN='\033[0;32m'
+export YELLOW='\033[1;33m'
+export BLUE='\033[0;34m'
+export CYAN='\033[0;36m'
+export NC='\033[0m'
+
+LOG_FILE="/var/log/remnawave-bootstrap.log"
+
+cleanup() {
+    rm -f /tmp/remnawave_install_* 2>/dev/null || true
+    # Удаление временной папки, если скрипт скачивал библиотеки
+    if [[ -n "${TMP_DIR:-}" && -d "${TMP_DIR:-}" ]]; then
+        rm -rf "$TMP_DIR"
+    fi
+}
+trap cleanup EXIT INT TERM
+
+log() {
+    local level=$1
+    shift
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$level] $*" >> "$LOG_FILE"
+}
+
+ok() {
+    echo -e "${GREEN}[OK]${NC} $*"
+    log "OK" "$*"
+}
+
+warn() {
+    echo -e "${YELLOW}[WARN]${NC} $*"
+    log "WARN" "$*"
+}
+
+info() {
+    echo -e "${CYAN}[INFO]${NC} $*"
+    log "INFO" "$*"
+}
+
+ask() {
+    echo -e "${BLUE}[?]${NC} $*"
+}
+
+error() {
+    echo -e "${RED}[ERROR]${NC} $*" >&2
+    log "ERROR" "$*"
+    exit 1
+}
+
+backup_file() {
+    local file=$1
+    if [[ -f "$file" ]]; then
+        local backup="${file}.bak.$(date +%Y%m%d_%H%M%S)"
+        cp "$file" "$backup"
+        log "BACKUP" "Создан бэкап: $backup"
+    fi
+}
+
+check_root() {
+    [[ $EUID -eq 0 ]] || error "Запустите скрипт от имени root (sudo)"
+    ok "Root права есть"
+}
+
+check_ubuntu_version() {
+    if [[ ! -f /etc/os-release ]]; then error "Не удалось определить ОС"; fi
+    source /etc/os-release
+    [[ "$ID" == "ubuntu" ]] || error "Поддерживается только Ubuntu"
+    [[ "$VERSION_ID" == "24.04" ]] || error "Поддерживается только Ubuntu 24.04 (текущая: $VERSION_ID)"
+    ok "Ubuntu 24.04 обнаружена"
+}
+
+check_internet() {
+    if ! ping -c1 -W2 1.1.1.1 >/dev/null 2>&1; then
+        if ! curl -fsS --max-time 5 https://1.1.1.1 >/dev/null 2>&1; then
+            error "Нет доступа в интернет"
+        fi
+    fi
+    getent hosts github.com >/dev/null 2>&1 || error "Не работает DNS (github.com)"
+    ok "Интернет есть"
+}
+
+check_disk_space() {
+    local free_gb
+    free_gb=$(df / --output=avail | tail -1 | awk '{print int($1/1024/1024)}')
+    [[ "$free_gb" -ge 5 ]] || error "Мало места на диске (нужно 5GB, есть ${free_gb}GB)"
+    ok "Место на диске OK (${free_gb}GB свободно)"
+}
+
+check_ram() {
+    local ram_mb
+    ram_mb=$(free -m | awk '/^Mem:/{print $2}')
+    if [[ "$ram_mb" -lt 512 ]]; then
+        warn "Мало оперативной памяти: ${ram_mb}MB (рекомендуется от 512MB)"
+    else
+        ok "ОЗУ: ${ram_mb}MB"
+    fi
+}
+
+check_ports() {
+    for port in 2222 443; do
+        if ss -tln "( sport = :$port )" | grep -q LISTEN; then
+            error "Порт ${port} уже занят другим сервисом"
+        fi
+    done
+    ok "Порты 2222 и 443 свободны"
+}
+
+get_ssh_port() {
+    local ssh_port
+    ssh_port=$(sshd -T 2>/dev/null | awk '/^port /{print $2}' | head -1)
+    echo "${ssh_port:-22}"
+}
