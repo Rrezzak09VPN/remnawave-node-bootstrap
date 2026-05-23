@@ -54,6 +54,7 @@ check_internet
 check_disk_space
 check_ram
 check_ports
+check_existing_node
 
 echo ""
 ask "Продолжить установку? [y/N]: "
