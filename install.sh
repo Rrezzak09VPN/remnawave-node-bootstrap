@@ -37,8 +37,8 @@ cat << "EOF"
 ║     ██║  ██║███████╗██║ ╚═╝ ██║██║ ╚████║██║  ██║╚███╔███╔╝      ║
 ║     ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚══╝╚══╝       ║
 ║                                                                  ║
-║           Remnawave Node Bootstrap Installer v1.0               ║
-║                      Ubuntu 24.04 only                          ║
+║           Remnawave Node Bootstrap Installer v1.0                ║
+║                      Ubuntu 24.04 only                           ║
 ║                                                                  ║
 ╚══════════════════════════════════════════════════════════════════╝
 EOF
