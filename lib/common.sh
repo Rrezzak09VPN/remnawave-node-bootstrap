@@ -119,3 +119,32 @@ get_ssh_port() {
     ssh_port=$(sshd -T 2>/dev/null | awk '/^port /{print $2}' | head -1)
     echo "${ssh_port:-22}"
 }
+check_existing_node() {
+    local node_found=false
+    
+    if [[ -f "/opt/remnanode/docker-compose.yml" ]]; then
+        node_found=true
+    fi
+    
+    if command -v docker >/dev/null 2>&1; then
+        if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx "remnanode"; then
+            node_found=true
+        fi
+    fi
+
+    if [[ "$node_found" == true ]]; then
+        warn "ВНИМАНИЕ: Обнаружена уже установленная нода Remnawave!"
+        echo "  - Найден файл: /opt/remnanode/docker-compose.yml"
+        echo "  - Или запущен контейнер: remnanode"
+        echo ""
+        echo "Этот скрипт предназначен для ЧИСТЫХ серверов."
+        echo "Продолжение может перезаписать ваши настройки или вызвать конфликт портов."
+        echo ""
+        ask "Вы уверены, что хотите продолжить? [y/N]: "
+        read -r answer
+        if [[ ! "$answer" =~ ^[Yy]$ ]]; then
+            info "Установка отменена пользователем."
+            exit 0
+        fi
+    fi
+}
