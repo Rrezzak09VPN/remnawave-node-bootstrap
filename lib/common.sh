@@ -1,6 +1,4 @@
 #!/bin/bash
-# lib/common.sh
-
 set -Eeuo pipefail
 
 SCRIPT_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,7 +14,6 @@ LOG_FILE="/var/log/remnawave-bootstrap.log"
 
 cleanup() {
     rm -f /tmp/remnawave_install_* 2>/dev/null || true
-    # Удаление временной папки, если скрипт скачивал библиотеки
     if [[ -n "${TMP_DIR:-}" && -d "${TMP_DIR:-}" ]]; then
         rm -rf "$TMP_DIR"
     fi
@@ -65,6 +62,31 @@ backup_file() {
     fi
 }
 
+# Анимированный спиннер для долгих команд (apt, docker install)
+run_with_spinner() {
+    local cmd="$1"
+    local msg="$2"
+    local delay=0.1
+    local spinstr='|/-\'
+    local temp
+    
+    ( eval "$cmd" >> "$LOG_FILE" 2>&1 ) &
+    local pid=$!
+    
+    while kill -0 "$pid" 2>/dev/null; do
+        temp=${spinstr#?}
+        printf "  [%c] %s" "$spinstr" "$msg"
+        spinstr=$temp${spinstr%"$temp"}
+        sleep $delay
+        printf "\r\033[K"
+    done
+    
+    wait "$pid"
+    local exit_code=$?
+    printf "\r\033[K"
+    return $exit_code
+}
+
 check_root() {
     [[ $EUID -eq 0 ]] || error "Запустите скрипт от имени root (sudo)"
     ok "Root права есть"
@@ -91,7 +113,7 @@ check_internet() {
 check_disk_space() {
     local free_gb
     free_gb=$(df / --output=avail | tail -1 | awk '{print int($1/1024/1024)}')
-    [[ "$free_gb" -ge 5 ]] || error "Мало места на диске (нужно 5GB, есть ${free_gb}GB)"
+    [[ "$free_gb" -ge 3 ]] || error "Мало места на диске (нужно 3GB, есть ${free_gb}GB)"
     ok "Место на диске OK (${free_gb}GB свободно)"
 }
 
@@ -99,7 +121,7 @@ check_ram() {
     local ram_mb
     ram_mb=$(free -m | awk '/^Mem:/{print $2}')
     if [[ "$ram_mb" -lt 512 ]]; then
-        warn "Мало оперативной памяти: ${ram_mb}MB (рекомендуется от 512MB)"
+        warn "Мало оперативной памяти: ${ram_mb}MB"
     else
         ok "ОЗУ: ${ram_mb}MB"
     fi
@@ -119,31 +141,22 @@ get_ssh_port() {
     ssh_port=$(sshd -T 2>/dev/null | awk '/^port /{print $2}' | head -1)
     echo "${ssh_port:-22}"
 }
+
 check_existing_node() {
     local node_found=false
-    
-    if [[ -f "/opt/remnanode/docker-compose.yml" ]]; then
-        node_found=true
-    fi
-    
+    if [[ -f "/opt/remnanode/docker-compose.yml" ]]; then node_found=true; fi
     if command -v docker >/dev/null 2>&1; then
         if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx "remnanode"; then
             node_found=true
         fi
     fi
-
     if [[ "$node_found" == true ]]; then
         warn "ВНИМАНИЕ: Обнаружена уже установленная нода Remnawave!"
-        echo "  - Найден файл: /opt/remnanode/docker-compose.yml"
-        echo "  - Или запущен контейнер: remnanode"
-        echo ""
         echo "Этот скрипт предназначен для ЧИСТЫХ серверов."
-        echo "Продолжение может перезаписать ваши настройки или вызвать конфликт портов."
-        echo ""
         ask "Вы уверены, что хотите продолжить? [y/N]: "
         read -r answer
         if [[ ! "$answer" =~ ^[Yy]$ ]]; then
-            info "Установка отменена пользователем."
+            info "Установка отменена."
             exit 0
         fi
     fi
