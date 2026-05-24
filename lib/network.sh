@@ -43,21 +43,17 @@ block_ping() {
     backup_file "$file"
     backup_file "$file6"
     
-    # IPv4: Меняем ACCEPT на DROP для echo-request (INPUT и FORWARD)
-    sed -i 's/\(-A ufw-before-input -p icmp --icmp-type echo-request -j\) ACCEPT/\1 DROP/' "$file"
-    sed -i 's/\(-A ufw-before-forward -p icmp --icmp-type echo-request -j\) ACCEPT/\1 DROP/' "$file"
+    # IPv4: Меняем ACCEPT на DROP для echo-request
+    sed -i '/echo-request/s/ACCEPT/DROP/' "$file"
     
-    # IPv6: Меняем ACCEPT на DROP для echo-request (INPUT, FORWARD, OUTPUT)
+    # IPv6: Меняем ACCEPT на DROP для echo-request (учтён синтаксис icmpv6)
     if [[ -f "$file6" ]]; then
-        sed -i 's/\(-A ufw6-before-input -p ipv6-icmp --icmpv6-type echo-request -j\) ACCEPT/\1 DROP/' "$file6"
-        sed -i 's/\(-A ufw6-before-forward -p ipv6-icmp --icmpv6-type echo-request -j\) ACCEPT/\1 DROP/' "$file6"
-        sed -i 's/\(-A ufw6-before-output -p ipv6-icmp --icmpv6-type echo-request -j\) ACCEPT/\1 DROP/' "$file6"
+        sed -i '/echo-request/s/ACCEPT/DROP/' "$file6"
     fi
     
     ufw reload >/dev/null 2>&1 || error "Не удалось перезагрузить UFW"
-    ok "Ping заблокирован"
+    ok "Ping заблокирован (IPv4/IPv6)"
 }
-
 disable_ipv6() {
     info "Отключение IPv6..."
     
